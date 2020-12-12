@@ -12,40 +12,42 @@ import android.view.ViewTreeObserver;
 
 public class GameView extends View {
 
-    // GAME VALUES
-    private final int PADDLE_HEIGHT_SCREEN_PERCENT = 30;
-    private final int PADDLE_WIDTH = 50;
-    private final int PADDLE_TO_SCREEN_BORDER_HORIZONTAL_OFFSET = 150;
-    private final int BALL_SIZE = 50;
-    private final int BALL_START_VELOCITY = 1000;
-    private final int BALL_ACCELERATION = 5000;
+    // GAME CONSTANT VALUES
+    private final int
+            PADDLE_HEIGHT_SCREEN_PERCENT = 30,
+            PADDLE_WIDTH = 50,
+            PADDLE_TO_SCREEN_BORDER_HORIZONTAL_OFFSET = 150,
+            BALL_SIZE = 50,
+            BALL_START_VELOCITY = 1000,
+            BALL_ACCELERATION = 5000,
+            TEXT_SCREEN_OFFSET = 100,
+            TEXT_SIZE = 50;
 
-    private final int TEXT_SCREEN_OFFSET = 100;
-    private final int TEXT_SIZE = 50;
-
-
+    // players points
+    private int points[] = {0,0};
+    // Game objects
     public Paddle paddleLeft, paddleRight;
     public Ball ball;
 
     private Paint mPaint;
     private int mWidth, mHeight;
     private long timeOfLastDraw;
-    private int points[] = {0,0};
 
     public GameView(Context context) {
         super(context);
 
+        //add a listener that will fire only once when layout is set, to get width and height and setup game based on this values
         final GameView thisView = this;
         ViewTreeObserver viewTreeObserver = thisView.getViewTreeObserver();
         if (viewTreeObserver.isAlive()) {
-            //add a listener that will fire only once when layout is set, to get width and height and setup game based on this values
             viewTreeObserver.addOnGlobalLayoutListener(new ViewTreeObserver.OnGlobalLayoutListener() {
                 @Override
                 public void onGlobalLayout() {
+                    // remove this listener after it is called, so it will be called only once
                     thisView.getViewTreeObserver().removeOnGlobalLayoutListener(this);
+
                     mWidth = thisView.getWidth();
                     mHeight = thisView.getHeight();
-
                     thisView.setupGame();
                 }
             });
@@ -106,10 +108,12 @@ public class GameView extends View {
         if (ball.direction[0] > 0) {
             // ball is moving right
             // check collision with right paddle
-            if (ball.getXPos() + ball.getWidth() / 2 > mWidth - PADDLE_TO_SCREEN_BORDER_HORIZONTAL_OFFSET - paddleRight.getWidth() / 2) {
+            if (ball.getXPos() + ball.getWidth() / 2 > mWidth - PADDLE_TO_SCREEN_BORDER_HORIZONTAL_OFFSET - paddleRight.getWidth() / 2 &&
+                    ball.getXPos() < mWidth - PADDLE_TO_SCREEN_BORDER_HORIZONTAL_OFFSET) {
+
                 if (ball.getYPos() + ball.getHeight() / 2 > paddleRight.getYPos() - paddleRight.getHeight() / 2 &&
-                        ball.getYPos() - ball.getHeight() / 2 < paddleRight.getYPos() + paddleRight.getHeight() / 2 &&
-                        ball.getXPos() < mWidth - PADDLE_TO_SCREEN_BORDER_HORIZONTAL_OFFSET) {
+                        ball.getYPos() - ball.getHeight() / 2 < paddleRight.getYPos() + paddleRight.getHeight() / 2
+                        ) {
                     handleBallPaddleCollision(paddleRight);
                 }
             }
@@ -122,14 +126,15 @@ public class GameView extends View {
         else {
             // ball is moving left
             // check collision with left paddle
-            if (ball.getXPos() - ball.getWidth() / 2 < PADDLE_TO_SCREEN_BORDER_HORIZONTAL_OFFSET + paddleLeft.getWidth() / 2) {
+            if (ball.getXPos() - ball.getWidth() / 2 < PADDLE_TO_SCREEN_BORDER_HORIZONTAL_OFFSET + paddleLeft.getWidth() / 2 &&
+                    ball.getXPos() > PADDLE_TO_SCREEN_BORDER_HORIZONTAL_OFFSET) {
+
                 if (ball.getYPos() + ball.getHeight() / 2 > paddleLeft.getYPos() - paddleLeft.getHeight() / 2 &&
-                        ball.getYPos() - ball.getHeight() / 2 < paddleLeft.getYPos() + paddleLeft.getHeight() / 2 &&
-                        ball.getXPos() > PADDLE_TO_SCREEN_BORDER_HORIZONTAL_OFFSET) {
+                        ball.getYPos() - ball.getHeight() / 2 < paddleLeft.getYPos() + paddleLeft.getHeight() / 2
+                        ) {
                     handleBallPaddleCollision(paddleLeft);
                 }
             }
-
             // check collision with left screen bound
             if (ball.getXPos() - ball.getWidth() / 2 < 0) {
                 resetGame();
@@ -137,10 +142,10 @@ public class GameView extends View {
             }
         }
 
-        if (ball.direction[1] != 0) {
+        if (ball.direction[1] > 0) {
             // ball is moving up
-            // check collision with upper screen bound
             if ((ball.getYPos() + ball.getHeight() / 2 > mHeight)) {
+                // bal hit upper edge
                 // revert vertical ball direction
                 double ballDirection[] = ball.getDirection();
                 ballDirection[1] = -ballDirection[1];
@@ -148,7 +153,11 @@ public class GameView extends View {
 
                 ball.setYPos(mHeight - ball.getHeight() / 2);
             }
-            else if (ball.getYPos() - ball.getHeight() / 2 < 0) {
+        }
+        else {
+            // ball is moving down
+            if (ball.getYPos() - ball.getHeight() / 2 < 0) {
+                // ball hit bottom edge
                 // revert vertical ball direction
                 double ballDirection[] = ball.getDirection();
                 ballDirection[1] = -ballDirection[1];
@@ -185,21 +194,23 @@ public class GameView extends View {
 
     @Override
     protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
-
+        // on screen resize correct game view dimensions
         mWidth = MeasureSpec.getSize(widthMeasureSpec);
         mHeight = MeasureSpec.getSize(heightMeasureSpec);
         setMeasuredDimension(widthMeasureSpec, heightMeasureSpec);
     }
 
     private void resetGame() {
+
+        // give ball starting position and velocity. Generate random direction and set it.
         ball.setXPos(mWidth / 2);
         ball.setYPos(mHeight / 2);
-
         double randomizedAngle = java.util.concurrent.ThreadLocalRandom.current().nextDouble(0.0, 2 * Math.PI + 1.0);
         ball.setDirection(new double[]{Math.cos(randomizedAngle), Math.sin(randomizedAngle)});
         ball.setVelocity(BALL_START_VELOCITY);
         ball.setAcceleration(BALL_ACCELERATION);
 
+        // reset paddles position
 //        paddleLeft.setYPos(mHeight / 2);
 //        paddleRight.setYPos(mHeight / 2);
     }
